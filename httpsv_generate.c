@@ -260,7 +260,7 @@ void HTTPSV_GenerateScoreBoard(cluster_t *cluster, oproxy_t *dest, scoreboard *b
 
 void HTTPSV_GenerateNowPlaying(cluster_t *cluster, oproxy_t *dest)
 {
-	int player;
+	int player, spectators;
 	char *s, *server;
 	char buffer[1024];
 	sv_t *streams;
@@ -283,6 +283,8 @@ void HTTPSV_GenerateNowPlaying(cluster_t *cluster, oproxy_t *dest)
 	HTMLPRINT("    <table id='nowplaying' cellspacing='0'>\n");
 	for (streams = cluster->servers; streams; streams = streams->next)
 	{
+		spectators=0;
+
 		// skip "tcp:" prefix if any
 		server = (strncmp(streams->server, "tcp:", sizeof("tcp:") - 1) ? streams->server : streams->server + sizeof("tcp:") - 1);
 
@@ -301,7 +303,9 @@ void HTTPSV_GenerateNowPlaying(cluster_t *cluster, oproxy_t *dest)
 			{
 				sv_empty = 0;
 				ScoreBoard_AddPlayer(&sboard, streams->players + player);
-			}
+			} else if ((IsSpectator(streams->players + player)) && //count all spectators except serveme
+					(strcmp("lqwc",Info_ValueForKey((streams->players+player)->userinfo, "team", buffer, sizeof(buffer)))))
+				spectators++;
 		}
 
 		teamplay = false;
@@ -399,11 +403,21 @@ void HTTPSV_GenerateNowPlaying(cluster_t *cluster, oproxy_t *dest)
 				Net_ProxySend(cluster, dest, buffer, strlen(buffer));
 			}
 
-			// number of observers
-			snprintf(buffer,sizeof(buffer), "          <p class='observers'>Observers: <span>%u</span></p>\n", Proxy_UsersCount(streams));
+			HTMLPRINT("<table class='meta' cols=2><tr class='metatr'><td class='metatd'>");
+
+			//number of spectators	
+			snprintf(buffer,sizeof(buffer), "<p class='spectators'>Spectators: <span>%u</span></p>\n", spectators);
 			Net_ProxySend(cluster, dest, buffer, strlen(buffer));
 
-			HTMLPRINT("        </td>\n      </tr>\n");
+			HTMLPRINT("</td><td class='metatd'>");
+
+			// number of observers
+			snprintf(buffer,sizeof(buffer), "<p class='observers'>Observers: <span>%u</span></p>\n", Proxy_UsersCount(streams));
+			Net_ProxySend(cluster, dest, buffer, strlen(buffer));
+
+			HTMLPRINT("</td></tr></table>");
+
+			HTMLPRINT("</td>\n</tr>\n");
 		}
 	}
 	HTMLPRINT("    </table>\n");

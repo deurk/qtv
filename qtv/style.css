@@ -177,6 +177,9 @@ h2 a:hover {
 	text-align: left;
 }
 
+.meta tr td {
+  border: 0 !important;
+}
 
 #version {
 	text-align: center;
